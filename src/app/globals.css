@@ -1,0 +1,425 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SC COURIER — Global Stylesheet
+   Tailwind CSS v4 · CSS-native configuration (no tailwind.config.ts needed)
+   All brand tokens, animations, and utilities live here.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TAILWIND v4 THEME
+   @theme defines all design tokens. Tailwind auto-generates utility classes:
+     --color-*     →  bg-*, text-*, border-*, ring-*, shadow-*, fill-*, stroke-*
+     --font-*      →  font-*
+     --rounded-*   →  rounded-*
+     --shadow-*    →  shadow-*
+     --animate-*   →  animate-*
+     --spacing-*   →  p-*, m-*, gap-*, w-*, h-* (extends defaults)
+   ───────────────────────────────────────────────────────────────────────── */
+@theme {
+
+  /* ── Brand Colors ─────────────────────────────────────────────────────── */
+  --color-primary:         #0F2B46;   /* Deep Navy   — trust, authority     */
+  --color-primary-light:   #1a4a78;
+  --color-primary-dark:    #081d30;
+  --color-primary-50:      #eaf0f7;
+  --color-primary-100:     #c5d8ec;
+  --color-primary-200:     #9dbedd;
+
+  --color-secondary:       #F59E0B;   /* Amber Gold  — speed, premium       */
+  --color-secondary-light: #fbbf24;
+  --color-secondary-dark:  #d97706;
+  --color-secondary-50:    #fffbeb;
+  --color-secondary-100:   #fef3c7;
+  --color-secondary-200:   #fde68a;
+
+  --color-accent:          #10B981;   /* Emerald     — success, delivery    */
+  --color-accent-light:    #34d399;
+  --color-accent-dark:     #059669;
+  --color-accent-50:       #ecfdf5;
+  --color-accent-100:      #d1fae5;
+
+  --color-danger:          #EF4444;   /* Red         — alerts, urgency      */
+  --color-danger-light:    #f87171;
+  --color-danger-dark:     #dc2626;
+  --color-danger-50:       #fef2f2;
+  --color-danger-100:      #fee2e2;
+
+  --color-warning:         #F97316;   /* Orange      — warnings             */
+  --color-warning-50:      #fff7ed;
+  --color-warning-100:     #ffedd5;
+
+  --color-surface:         #F8FAFC;   /* Page bg     — light gray           */
+  --color-card:            #FFFFFF;   /* Card bg     — white                */
+  --color-border:          #E2E8F0;   /* Border      — subtle               */
+  --color-border-strong:   #CBD5E1;   /* Border      — stronger             */
+
+  --color-text-primary:    #0F172A;   /* Body text   — near black           */
+  --color-text-secondary:  #64748B;   /* Muted text  — slate                */
+  --color-text-disabled:   #94A3B8;   /* Disabled    — lighter slate        */
+  --color-text-inverse:    #FFFFFF;   /* On dark bg  — white                */
+
+  /* ── Typography ──────────────────────────────────────────────────────── */
+  --font-heading: var(--font-outfit),  'Outfit',  system-ui, sans-serif;
+  --font-body:    var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+  --font-sans:    var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code',  monospace;
+
+  /* ── Border Radius ────────────────────────────────────────────────────── */
+  --radius-card:   1rem;       /* 16px · cards, panels                      */
+  --radius-button: 0.75rem;    /* 12px · buttons                            */
+  --radius-input:  0.75rem;    /* 12px · inputs, selects                    */
+  --radius-badge:  9999px;     /* pill · status badges                      */
+  --radius-tag:    0.375rem;   /* 6px  · small inline tags                  */
+
+  /* ── Elevation Shadows ────────────────────────────────────────────────── */
+  --shadow-card:     0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+  --shadow-hover:    0 4px 12px 0 rgb(15 43 70 / 0.08), 0 2px 4px -1px rgb(15 43 70 / 0.04);
+  --shadow-elevated: 0 10px 25px -5px rgb(15 43 70 / 0.12), 0 4px 6px -2px rgb(15 43 70 / 0.06);
+  --shadow-modal:    0 25px 60px -12px rgb(15 43 70 / 0.25);
+  --shadow-button:   0 4px 14px 0 rgb(15 43 70 / 0.22);
+  --shadow-gold:     0 4px 18px 0 rgb(245 158 11 / 0.35);
+  --shadow-inner:    inset 0 2px 4px 0 rgb(0 0 0 / 0.06);
+
+  /* ── Keyframe Animations ──────────────────────────────────────────────── */
+  /* Usage: class="animate-fade-in"  animate-slide-up  etc.                 */
+
+  --animate-fade-in:       fadeIn        0.3s ease-out                        both;
+  --animate-slide-up:      slideUp       0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-down:    slideDown     0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-in-right:slideInRight  0.4s  cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-in-left: slideInLeft   0.4s  cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-scale-in:      scaleIn       0.2s  cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-scale-out:     scaleOut      0.15s cubic-bezier(0.4, 0, 1, 1)    both;
+  --animate-shimmer:       shimmer       1.8s  ease-in-out                    infinite;
+  --animate-spin-slow:     spinSlow      3s    linear                         infinite;
+  --animate-pulse-glow:    pulseGlow     2s    ease-in-out                    infinite;
+  --animate-float:         float         3.5s  ease-in-out                    infinite;
+  --animate-checkmark:     checkmarkDraw 0.6s  cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-counter:       counterUp     0.9s  cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-bounce-in:     bounceIn      0.5s  cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-toast-in:      toastIn       0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-toast-out:     toastOut      0.25s cubic-bezier(0.4, 0, 1, 1)    both;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CSS CUSTOM PROPERTIES  (for direct use in CSS expressions / component styles)
+   These mirror the @theme tokens so both Tailwind classes AND raw CSS work.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Colors */
+  --color-primary:        #0F2B46;
+  --color-secondary:      #F59E0B;
+  --color-accent:         #10B981;
+  --color-danger:         #EF4444;
+  --color-warning:        #F97316;
+  --color-surface:        #F8FAFC;
+  --color-card:           #FFFFFF;
+  --color-border:         #E2E8F0;
+  --color-text-primary:   #0F172A;
+  --color-text-secondary: #64748B;
+  --color-text-disabled:  #94A3B8;
+
+  /* Typography */
+  --font-heading: var(--font-outfit),  'Outfit',  system-ui, sans-serif;
+  --font-body:    var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+
+  /* Radii */
+  --radius-card:   1rem;
+  --radius-button: 0.75rem;
+  --radius-input:  0.75rem;
+  --radius-badge:  9999px;
+
+  /* Transitions */
+  --transition-fast:   150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:   400ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 450ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BASE STYLES
+   ───────────────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing:  antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  font-family: var(--font-body);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-text-primary);
+  letter-spacing: -0.025em;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SELECTION + FOCUS
+   ───────────────────────────────────────────────────────────────────────── */
+::selection {
+  background-color: rgb(245 158 11 / 0.22);
+  color: var(--color-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CUSTOM SCROLLBAR  (Webkit + Firefox)
+   ───────────────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--color-surface); }
+::-webkit-scrollbar-thumb {
+  background:    var(--color-primary);
+  border-radius: 100px;
+  transition:    background var(--transition-fast);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-primary-light); }
+
+* {
+  scrollbar-width:  thin;
+  scrollbar-color: var(--color-primary) var(--color-surface);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   KEYFRAME LIBRARY
+   All animations referenced in @theme --animate-* above.
+   Only uses transform + opacity for 60fps GPU-composited performance.
+   ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-18px); }
+  to   { opacity: 1; transform: translateY(0);     }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0);     }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1);    }
+}
+
+@keyframes scaleOut {
+  from { opacity: 1; transform: scale(1);    }
+  to   { opacity: 0; transform: scale(0.94); }
+}
+
+@keyframes bounceIn {
+  from { opacity: 0; transform: scale(0.8);    }
+  60%  { opacity: 1; transform: scale(1.05);   }
+  to   { opacity: 1; transform: scale(1);      }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg);   }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes checkmarkDraw {
+  from { stroke-dashoffset: 100; opacity: 0; }
+  to   { stroke-dashoffset: 0;   opacity: 1; }
+}
+
+@keyframes counterUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% { box-shadow: 0 0 0  0   rgb(245 158 11 / 0.5); }
+  50%  { box-shadow: 0 0 0  14px rgb(245 158 11 / 0);  }
+}
+
+@keyframes float {
+  0%,
+  100% { transform: translateY(0px);  }
+  50%  { transform: translateY(-8px); }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(calc(100% + 1.5rem)); }
+  to   { opacity: 1; transform: translateX(0);                    }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0);                    }
+  to   { opacity: 0; transform: translateX(calc(100% + 1.5rem)); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   UTILITY LAYER
+   Custom utilities available as Tailwind classes via @layer utilities
+   ───────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+
+  /* ── Animation stagger delays ─────────────────────────────────────────── */
+  .stagger-1  { animation-delay: 75ms;  }
+  .stagger-2  { animation-delay: 150ms; }
+  .stagger-3  { animation-delay: 225ms; }
+  .stagger-4  { animation-delay: 300ms; }
+  .stagger-5  { animation-delay: 375ms; }
+  .stagger-6  { animation-delay: 450ms; }
+
+  /* ── Card hover lift ─────────────────────────────────────────────────── */
+  .card-hover {
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+  }
+  .card-hover:hover {
+    transform:  translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgb(15 43 70 / 0.12), 0 4px 6px -2px rgb(15 43 70 / 0.06);
+  }
+
+  /* ── Skeleton loading shimmer ────────────────────────────────────────── */
+  .skeleton {
+    background:          linear-gradient(90deg, #eef2f7 25%, #e2e8f0 50%, #eef2f7 75%);
+    background-size:     200% 100%;
+    animation:           shimmer 1.8s ease-in-out infinite;
+    border-radius:       0.375rem;
+  }
+
+  /* ── Gradient text utilities ─────────────────────────────────────────── */
+  .text-gradient-brand {
+    background:             linear-gradient(135deg, #0F2B46 0%, #1a4a78 50%, #F59E0B 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip:         text;
+  }
+
+  .text-gradient-gold {
+    background:              linear-gradient(120deg, #d97706 0%, #F59E0B 45%, #fcd34d 75%, #F59E0B 100%);
+    background-size:         200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip:         text;
+  }
+
+  .text-gradient-emerald {
+    background:              linear-gradient(120deg, #059669 0%, #10B981 60%, #34d399 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip:         text;
+  }
+
+  /* ── Background patterns ─────────────────────────────────────────────── */
+  .bg-grid-dots {
+    background-image: radial-gradient(circle, #0F2B4614 1px, transparent 1px);
+    background-size:  24px 24px;
+  }
+
+  .bg-grid-lines {
+    background-image:
+      linear-gradient(to right, #0F2B460a 1px, transparent 1px),
+      linear-gradient(to bottom, #0F2B460a 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .bg-hero-gradient {
+    background: linear-gradient(135deg, #0F2B46 0%, #1a4a78 60%, #0d3d6e 100%);
+  }
+
+  .bg-gold-shimmer {
+    background:          linear-gradient(90deg, #F59E0B 0%, #fcd34d 50%, #F59E0B 100%);
+    background-size:     200% auto;
+    animation:           shimmer 3s linear infinite;
+  }
+
+  /* ── Glass morphism ──────────────────────────────────────────────────── */
+  .glass {
+    background:        rgb(255 255 255 / 0.08);
+    backdrop-filter:   blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border:            1px solid rgb(255 255 255 / 0.12);
+  }
+
+  .glass-card {
+    background:        rgb(255 255 255 / 0.95);
+    backdrop-filter:   blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border:            1px solid rgb(255 255 255 / 0.8);
+    box-shadow:        0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+  }
+
+  /* ── Status color helpers ────────────────────────────────────────────── */
+  .status-delivered   { color: #10B981; background-color: #ecfdf5; }
+  .status-in-transit  { color: #3B82F6; background-color: #eff6ff; }
+  .status-pending     { color: #F59E0B; background-color: #fffbeb; }
+  .status-cancelled   { color: #EF4444; background-color: #fef2f2; }
+  .status-on-hold     { color: #6366F1; background-color: #eef2ff; }
+
+  /* ── Number counter animation base ──────────────────────────────────── */
+  .counter {
+    display:  inline-block;
+    overflow: hidden;
+  }
+
+  /* ── Checkmark SVG animation setup ──────────────────────────────────── */
+  .checkmark-path {
+    stroke-dasharray:  100;
+    stroke-dashoffset: 100;
+  }
+  .checkmark-path.animate {
+    animation: checkmarkDraw 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+  }
+
+  /* ── Scroll-reveal base (pair with JS IntersectionObserver) ─────────── */
+  .reveal {
+    opacity:   0;
+    transform: translateY(20px);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal.visible {
+    opacity:   1;
+    transform: translateY(0);
+  }
+
+  /* ── Print utility ───────────────────────────────────────────────────── */
+  @media print {
+    .no-print    { display: none !important; }
+    .print-break { page-break-before: always; }
+  }
+}
