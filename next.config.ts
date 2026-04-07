@@ -26,8 +26,6 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
 
-  // Standalone output — required for Hostinger Node.js and self-hosted deployments
-  output: 'standalone',
 
   async headers() {
     const securityHeaders = [
