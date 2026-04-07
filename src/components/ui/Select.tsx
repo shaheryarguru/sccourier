@@ -71,6 +71,10 @@ export function Select({
   const searchRef    = useRef<HTMLInputElement>(null);
   const listRef      = useRef<HTMLUListElement>(null);
 
+  function open()  { if (!disabled) { setIsOpen(true);  setFocused(-1); } }
+  function close() { setIsOpen(false); setQuery(''); setFocused(-1); }
+  function toggle(){ isOpen ? close() : open(); }
+
   // Sync with controlled value
   useEffect(() => {
     setSelected(toArray(value));
@@ -98,10 +102,6 @@ export function Select({
         o.label.toLowerCase().includes(query.toLowerCase())
       )
     : options;
-
-  function open()  { if (!disabled) { setIsOpen(true);  setFocused(-1); } }
-  function close() { setIsOpen(false); setQuery(''); setFocused(-1); }
-  function toggle(){ isOpen ? close() : open(); }
 
   const selectOption = useCallback(
     (opt: SelectOption) => {
