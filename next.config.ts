@@ -28,8 +28,8 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
 
-  // Emit standalone output for containerised / Cloudflare Pages deployments
-  // output: 'standalone',
+  // Standalone output — required for Hostinger Node.js and self-hosted deployments
+  output: 'standalone',
 
   // Allow production source maps for error tracking (Sentry etc.)
   // productionBrowserSourceMaps: true,
