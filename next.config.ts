@@ -1,29 +1,27 @@
 import type { NextConfig } from "next";
 
+const IS_DEV = process.env.NODE_ENV !== 'production';
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        // Cloudflare Images CDN — delivery proof, signatures, package photos
         protocol: 'https',
         hostname: 'imagedelivery.net',
         pathname: '/**',
       },
       {
-        // Cloudflare R2 / custom domain variant
         protocol: 'https',
         hostname: '*.cloudflareimages.com',
         pathname: '/**',
       },
       {
-        // Supabase Storage — company logo and other assets
         protocol: 'https',
         hostname: '*.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
     ],
     formats: ['image/avif', 'image/webp'],
-    // Serve images at device pixel ratios 1x and 2x
     deviceSizes: [375, 640, 768, 1024, 1280, 1536],
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
@@ -31,13 +29,36 @@ const nextConfig: NextConfig = {
   // Standalone output — required for Hostinger Node.js and self-hosted deployments
   output: 'standalone',
 
-  // Allow production source maps for error tracking (Sentry etc.)
-  // productionBrowserSourceMaps: true,
-
-  // /_next/static is cache-controlled by Next.js automatically — no override needed.
-  // Only add long-lived cache for self-hosted font files in /public/fonts.
   async headers() {
+    const securityHeaders = [
+      { key: 'X-Frame-Options',        value: 'DENY' },
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'X-XSS-Protection',       value: '1; mode=block' },
+      { key: 'Referrer-Policy',        value: 'strict-origin-when-cross-origin' },
+      { key: 'Permissions-Policy',     value: 'camera=(), microphone=(), geolocation=()' },
+      {
+        key: 'Content-Security-Policy',
+        value: [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          "img-src 'self' https://imagedelivery.net https://*.supabase.co data: blob:",
+          "font-src 'self' https://fonts.gstatic.com",
+          "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+          "frame-ancestors 'none'",
+          "base-uri 'self'",
+          "form-action 'self'",
+          "object-src 'none'",
+        ].join('; '),
+      },
+      ...(!IS_DEV ? [{ key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' }] : []),
+    ];
+
     return [
+      {
+        source: '/(.*)',
+        headers: securityHeaders,
+      },
       {
         source: '/fonts/:path*',
         headers: [
