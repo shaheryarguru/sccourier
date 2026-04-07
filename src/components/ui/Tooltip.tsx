@@ -1,8 +1,6 @@
 'use client';
 
 import React, {
-  cloneElement,
-  isValidElement,
   useCallback,
   useEffect,
   useId,
@@ -90,34 +88,19 @@ export function Tooltip({
   // Clean up timer on unmount
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
-  // Clone child to inject a11y + event props
-  const child = isValidElement(children)
-    ? cloneElement(children as React.ReactElement<React.HTMLAttributes<HTMLElement>>, {
-        onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
-          show();
-          (children.props as React.HTMLAttributes<HTMLElement>).onMouseEnter?.(e);
-        },
-        onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
-          hide();
-          (children.props as React.HTMLAttributes<HTMLElement>).onMouseLeave?.(e);
-        },
-        onFocus: (e: React.FocusEvent<HTMLElement>) => {
-          show();
-          (children.props as React.HTMLAttributes<HTMLElement>).onFocus?.(e);
-        },
-        onBlur: (e: React.FocusEvent<HTMLElement>) => {
-          hide();
-          (children.props as React.HTMLAttributes<HTMLElement>).onBlur?.(e);
-        },
-        'aria-describedby': visible ? tooltipId : undefined,
-      })
-    : children;
-
   const { tooltip: tooltipCls, arrow: arrowCls } = PLACEMENT[placement];
 
   return (
-    <span ref={containerRef} className="relative inline-flex">
-      {child}
+    <span
+      ref={containerRef}
+      className="relative inline-flex"
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+      aria-describedby={visible ? tooltipId : undefined}
+    >
+      {children}
 
       {visible && content && (
         <span

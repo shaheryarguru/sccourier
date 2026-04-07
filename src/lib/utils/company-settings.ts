@@ -7,7 +7,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { COMPANY_INFO, PRICING } from '@/lib/utils/constants';
+import { COMPANY_INFO } from '@/lib/utils/constants';
 
 export interface CompanySettings {
   company_name:    string;

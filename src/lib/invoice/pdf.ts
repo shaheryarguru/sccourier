@@ -200,7 +200,6 @@ export async function generateInvoicePDF(
     invoice.receiver_country ?? booking?.receiver_country,
   ]);
   const supplyDate = invoice.supply_date ?? booking?.pickup_date ?? invoice.issue_date;
-  const bkNo    = booking?.booking_number ?? '—';
   const svcType = booking?.service_type ? slugToLabel(booking.service_type) : null;
   const pkgType = booking?.package_type ? slugToLabel(booking.package_type) : null;
   const pkgDesc = booking?.package_description?.trim() || null;

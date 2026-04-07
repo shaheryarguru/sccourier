@@ -28,7 +28,9 @@ export function useRealtime<T extends object>({
   const channelRef = useRef<RealtimeChannel | null>(null);
   // Keep a stable ref to the callback so we don't re-subscribe on every render
   const onRecordRef = useRef(onRecord);
-  onRecordRef.current = onRecord;
+  useEffect(() => {
+    onRecordRef.current = onRecord;
+  });
 
   const subscribe = useCallback(() => {
     const supabase = createClient();
