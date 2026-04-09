@@ -1,15 +1,17 @@
 import React from 'react';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import {
   CheckCircle2, XCircle, ShieldCheck, ShieldX,
   FileText, Calendar, Hash, Building2, ArrowRight,
-  DollarSign, Banknote,
+  DollarSign, Banknote, FileSearch,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { Logo }   from '@/components/shared/Logo';
 import { verifyQRSignature } from '@/lib/invoice/qr';
 import { decodeQRPayload }   from '@/lib/utils/crypto';
 import { formatAED, formatDate } from '@/lib/utils/format';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -21,9 +23,30 @@ interface VerifyResultProps {
 
 // ── Server component — performs HMAC verification ─────────────────────────────
 
-export async function VerifyResult({ data, sig }: VerifyResultProps) {
-  // Missing params
+export async function VerifyResult({ data, sig, trackingId }: VerifyResultProps) {
+  // ── Tracking ID shortcut: redirect to the invoice page directly ───────────
+  // Used by the "View Invoice" button on the tracking page which passes
+  // ?trackingId=SC... instead of QR ?data=...&sig=... params.
   if (!data || !sig) {
+    if (trackingId) {
+      const supabase = createAdminClient();
+      const { data: invoice } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('tracking_id', trackingId.toUpperCase())
+        .eq('is_cancelled', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (invoice?.id) {
+        redirect(`/invoice/${invoice.id}`);
+      }
+
+      // Invoice doesn't exist yet for this shipment
+      return <NoInvoiceCard trackingId={trackingId.toUpperCase()} />;
+    }
+
     return (
       <InvalidCard
         message="This verification link is missing required parameters. Please scan the QR code directly from the original printed or digital invoice."
@@ -217,6 +240,49 @@ function InvalidCard({ message, invoiceNumber }: { message: string; invoiceNumbe
         <Link href="/">
           <Button variant="ghost" size="md" fullWidth>Back to Home</Button>
         </Link>
+      </div>
+    </div>
+  );
+}
+
+// ── No invoice card ───────────────────────────────────────────────────────────
+
+function NoInvoiceCard({ trackingId }: { trackingId: string }) {
+  return (
+    <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-md overflow-hidden">
+      <div className="h-1.5 bg-[#F59E0B] w-full" aria-hidden="true" />
+      <div className="bg-[#F8FAFC] border-b border-[#E5E7EB] px-6 py-8 text-center space-y-4">
+        <div className="size-20 rounded-full bg-[#0F2B46]/8 border-2 border-[#0F2B46]/15 flex items-center justify-center mx-auto" aria-hidden="true">
+          <FileSearch className="size-10 text-[#0F2B46]" />
+        </div>
+        <div>
+          <p className="font-heading font-bold text-2xl text-[#0F2B46]">No Invoice Yet</p>
+          <p className="font-mono text-sm text-[#64748B] mt-1">{trackingId}</p>
+        </div>
+        <div className="inline-flex items-center gap-1.5 bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#92400E] text-xs font-body font-bold px-3 py-1.5 rounded-full tracking-wider uppercase">
+          Invoice Not Generated
+        </div>
+      </div>
+      <div className="p-6 space-y-4">
+        <p className="text-sm font-body text-[#64748B] leading-relaxed">
+          An invoice has not been generated for shipment{' '}
+          <span className="font-mono font-semibold text-[#0F2B46]">{trackingId}</span> yet.
+          Invoices are typically issued after the booking is confirmed.
+        </p>
+        <div className="flex flex-col gap-2.5">
+          <Link href={`/tracking/${trackingId}`}>
+            <Button variant="primary" size="md" fullWidth rightIcon={<ArrowRight className="size-4" />}>
+              Track This Shipment
+            </Button>
+          </Link>
+          <Link href="/">
+            <Button variant="ghost" size="md" fullWidth>Back to Home</Button>
+          </Link>
+        </div>
+      </div>
+      <div className="border-t border-[#E5E7EB] px-6 py-4 flex items-center justify-center gap-2">
+        <Logo variant="icon" size="xs" theme="default" />
+        <p className="text-[10px] font-body text-[#94A3B8]">sccourier.com · UAE FTA Decree-Law No. 8 of 2017</p>
       </div>
     </div>
   );
