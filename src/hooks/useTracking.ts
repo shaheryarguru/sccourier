@@ -18,6 +18,7 @@ export interface TrackingData {
     | 'sender_emirate'
     | 'receiver_name'
     | 'receiver_city'
+    | 'receiver_emirate'
     | 'receiver_country'
     | 'service_type'
     | 'estimated_delivery'

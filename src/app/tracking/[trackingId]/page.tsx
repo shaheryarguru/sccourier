@@ -30,7 +30,7 @@ export default async function TrackingDetailPage({ params, searchParams }: Props
       .select(`
         id, tracking_id, booking_number, status,
         sender_name, sender_city, sender_emirate,
-        receiver_name, receiver_city, receiver_country,
+        receiver_name, receiver_city, receiver_emirate, receiver_country,
         service_type, estimated_delivery,
         total_amount, weight_kg, package_type,
         is_fragile, requires_signature, payment_method,

@@ -32,6 +32,8 @@ const C = {
 
 interface TrackingMapProps {
   originEmirate?:      string;
+  /** Preferred over destinationCity for UAE intra-shipments (dropdown value) */
+  destinationEmirate?: string;
   destinationCity?:    string;
   destinationCountry?: string;
   currentLocation?:    string | null;
@@ -55,6 +57,7 @@ function lerp(a: number, b: number, t: number) {
 
 export function TrackingMap({
   originEmirate      = 'dubai',
+  destinationEmirate,
   destinationCity,
   destinationCountry = 'UAE',
   currentLocation,
@@ -64,17 +67,33 @@ export function TrackingMap({
   const originKey  = normalize(originEmirate);
   const origin     = EMIRATE_NODES[originKey] ?? EMIRATE_NODES.dubai;
 
-  // For UAE destinations, try to find the emirate node; fallback to a generic "destination" point
+  // For UAE destinations prefer the emirate dropdown value (reliable) over
+  // the free-text city field. Fall back to city name, then abu_dhabi as default.
   const isInternational = destinationCountry !== 'UAE';
-  const destKey    = normalize(destinationCity ?? '');
-  const dest       = isInternational
-    ? { cx: 520, cy: 280, label: destinationCountry }   // Off-map right
-    : (EMIRATE_NODES[destKey] ?? EMIRATE_NODES.abu_dhabi);
+  const destEmirateKey  = normalize(destinationEmirate ?? '');
+  const destCityKey     = normalize(destinationCity ?? '');
+  const resolvedDestKey = EMIRATE_NODES[destEmirateKey]
+    ? destEmirateKey
+    : (EMIRATE_NODES[destCityKey] ? destCityKey : 'abu_dhabi');
 
-  // Current marker position along the arc
+  // Also try to map the currentLocation string to a known node
+  const currentKey  = normalize(currentLocation ?? '');
+  const currentNode = EMIRATE_NODES[currentKey] ?? null;
+
+  let dest = isInternational
+    ? { cx: 520, cy: 280, label: destinationCountry ?? 'International' }
+    : { ...EMIRATE_NODES[resolvedDestKey] };
+
+  // If origin and destination resolve to the same node (e.g., both Dubai),
+  // offset the destination pin slightly so both are visible.
+  if (!isInternational && resolvedDestKey === originKey) {
+    dest = { ...dest, cx: dest.cx + 30, cy: dest.cy - 20 };
+  }
+
+  // Current marker position: snap to known node if location resolves, else lerp along route
   const t          = Math.min(1, Math.max(0, routeProgress / 100));
-  const curX       = lerp(origin.cx, dest.cx, t);
-  const curY       = lerp(origin.cy, dest.cy, t) - Math.sin(Math.PI * t) * 24; // arc upwards
+  const curX       = currentNode ? currentNode.cx : lerp(origin.cx, dest.cx, t);
+  const curY       = currentNode ? currentNode.cy : lerp(origin.cy, dest.cy, t) - Math.sin(Math.PI * t) * 24;
 
   // Bezier control point for curved route line
   const cpX        = (origin.cx + dest.cx) / 2;
@@ -123,7 +142,7 @@ export function TrackingMap({
         {/* Emirate dots + labels */}
         {Object.entries(EMIRATE_NODES).map(([key, node]) => {
           const isOrigin = key === originKey;
-          const isDest   = key === destKey && !isInternational;
+          const isDest   = key === resolvedDestKey && !isInternational && resolvedDestKey !== originKey;
           if (isOrigin || isDest) return null; // drawn separately
           return (
             <g key={key}>
@@ -190,8 +209,8 @@ export function TrackingMap({
           {dest.label}
         </text>
 
-        {/* Current location dot (only if en route) */}
-        {t > 0 && t < 1 && (
+        {/* Current location dot (show when en route OR when we have an explicit location) */}
+        {(currentNode || (t > 0 && t < 1)) && (
           <g>
             <circle cx={curX} cy={curY} r="9" fill={C.current} opacity="0.15">
               <animate attributeName="r" values="9;14;9" dur="2s" repeatCount="indefinite" />
@@ -212,10 +231,10 @@ export function TrackingMap({
           <span className="size-2.5 rounded-full bg-accent" />
           Destination
         </span>
-        {t > 0 && t < 1 && (
+        {(currentNode || (t > 0 && t < 1)) && (
           <span className="flex items-center gap-1.5">
             <span className="size-2.5 rounded-full bg-primary" />
-            {currentLocation ?? 'In Transit'}
+            {currentNode?.label ?? currentLocation ?? 'In Transit'}
           </span>
         )}
       </div>

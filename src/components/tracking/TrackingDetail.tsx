@@ -58,6 +58,14 @@ export function TrackingDetail({ trackingId, initialData, showNewBanner, booking
   const isDelivered   = currentStatus === 'delivered';
   const deliveryEvent = events.find(e => e.status === 'delivered') ?? null;
 
+  // Use only real (non-audit) events for map location so audit entries
+  // with null location don't shadow a real current location.
+  const publicEvents     = events.filter(e => !e.is_custom_event);
+  const latestLocation   = publicEvents
+    .slice()
+    .sort((a, b) => new Date(b.event_timestamp).getTime() - new Date(a.event_timestamp).getTime())[0]
+    ?.location ?? null;
+
   // Live pulse dot
   const pulseRef = useRef<HTMLSpanElement>(null);
 
@@ -215,9 +223,10 @@ export function TrackingDetail({ trackingId, initialData, showNewBanner, booking
       {booking && (
         <TrackingMap
           originEmirate={booking.sender_emirate ?? 'dubai'}
+          destinationEmirate={booking.receiver_emirate ?? undefined}
           destinationCity={booking.receiver_city}
           destinationCountry={booking.receiver_country}
-          currentLocation={events[0]?.location}
+          currentLocation={latestLocation}
           routeProgress={progress}
           className="shadow-sm"
         />
