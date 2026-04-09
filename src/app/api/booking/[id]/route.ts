@@ -177,37 +177,57 @@ export async function PATCH(
 
   const tid = (newTrackingId ?? existing.tracking_id) as string;
 
+  // When backdating: backdate all existing tracking event timestamps too
+  // so the timeline reflects the correct booking date, not today.
+  if (booking_date) {
+    const backdatedTs = new Date(`${booking_date}T00:00:00.000Z`).toISOString();
+    await supabase
+      .from('tracking_events')
+      .update({
+        event_timestamp:     backdatedTs,
+        is_backdated:        true,
+        original_timestamp:  new Date().toISOString(),
+      })
+      .eq('booking_id', id)
+      .eq('is_custom_event', false);  // only real events, not admin audit entries
+  }
+
+  // Determine the effective event timestamp (backdated or now)
+  const effectiveTs = booking_date
+    ? new Date(`${booking_date}T00:01:00.000Z`).toISOString()
+    : new Date().toISOString();
+
   // Create status-change tracking event
   if (newStatus && newStatus !== existing.status) {
     await supabase.from('tracking_events').insert({
       booking_id:           id,
       tracking_id:          tid,
       status:               newStatus as import('@/lib/types/database').BookingStatus,
-      status_detail:        `Status updated to: ${newStatus.replace(/_/g, ' ')}`,
+      status_detail:        null,
       location:             null,
       location_coordinates: null,
       facility_code:        null,
       updated_by:           null,
-      notes:                'Admin status update',
+      notes:                null,
       photo_url:            null,
       signature_url:        null,
-      event_timestamp:      new Date().toISOString(),
+      event_timestamp:      effectiveTs,
     });
   }
 
-  // Audit event — record what changed
+  // Audit event — admin-only, never shown on public timeline
   const changedFields = Object.keys({ ...rest, ...(booking_date ? { booking_date } : {}), ...(newStatus ? { status: newStatus } : {}) });
   if (changedFields.length > 0) {
     await supabase.from('tracking_events').insert({
       booking_id:           id,
       tracking_id:          tid,
       status:               updated.status,
-      status_detail:        'Booking record modified',
+      status_detail:        'Booking record updated by admin',
       location:             null,
       location_coordinates: null,
       facility_code:        null,
       updated_by:           null,
-      notes:                `Fields updated: ${changedFields.join(', ')}`,
+      notes:                null,
       photo_url:            null,
       signature_url:        null,
       is_custom_event:      true,

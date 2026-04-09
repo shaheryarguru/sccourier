@@ -123,7 +123,11 @@ function MilestoneBar({ currentStatus }: { currentStatus: BookingStatus }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function TrackingTimeline({ events, currentStatus }: Props) {
-  if (!events.length) {
+  // Filter out admin-only audit entries (booking_modified etc.) — these are
+  // internal records not meant for the customer-facing timeline.
+  const publicEvents = events.filter(e => !e.is_custom_event);
+
+  if (!publicEvents.length) {
     return (
       <div className="text-center py-12 text-text-secondary font-body text-sm">
         No tracking events yet. Check back soon.
@@ -131,7 +135,7 @@ export function TrackingTimeline({ events, currentStatus }: Props) {
     );
   }
 
-  const sorted = [...events].sort(
+  const sorted = [...publicEvents].sort(
     (a, b) => new Date(b.event_timestamp).getTime() - new Date(a.event_timestamp).getTime(),
   );
 
