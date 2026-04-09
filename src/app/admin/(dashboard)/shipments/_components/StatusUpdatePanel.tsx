@@ -125,7 +125,19 @@ function BulkEventsModal({
     setRows(r => r.filter(x => x._key !== key));
   }
   function updateRow(key: number, field: keyof BulkEventItem, value: string) {
-    setRows(r => r.map(x => x._key === key ? { ...x, [field]: value } : x));
+    setRows(r => r.map(x => {
+      if (x._key !== key) return x;
+      const updated = { ...x, [field]: value };
+      // Auto-populate statusDetail with the generic description when status changes
+      // and the detail field hasn't been manually edited yet.
+      if (field === 'status' && value) {
+        const generic = SHIPMENT_STATUSES[value as BookingStatus]?.description ?? '';
+        if (!x.statusDetail || x.statusDetail === SHIPMENT_STATUSES[x.status as BookingStatus]?.description) {
+          updated.statusDetail = generic;
+        }
+      }
+      return updated;
+    }));
   }
 
   async function handleSubmit() {
@@ -323,7 +335,9 @@ export function StatusUpdatePanel({
   // ── Status Update form ──────────────────────────────────────────────────────
   const [statusForm, setStatusForm] = useState({
     newStatus:    nextStatuses[0] ?? '',
-    statusDetail: '',
+    statusDetail: nextStatuses[0]
+      ? (SHIPMENT_STATUSES[nextStatuses[0] as BookingStatus]?.description ?? '')
+      : '',
     location:     '',
     facilityCode: '',
     notes:        '',
@@ -621,7 +635,18 @@ export function StatusUpdatePanel({
                             id="new-status"
                             required
                             value={statusForm.newStatus}
-                            onChange={e => setStatusForm(f => ({ ...f, newStatus: e.target.value as BookingStatus }))}
+                            onChange={e => {
+                              const ns = e.target.value as BookingStatus;
+                              const generic = SHIPMENT_STATUSES[ns]?.description ?? '';
+                              setStatusForm(f => ({
+                                ...f,
+                                newStatus: ns,
+                                // Auto-fill detail if it's blank or still the previous generic value
+                                statusDetail: (!f.statusDetail || f.statusDetail === (SHIPMENT_STATUSES[f.newStatus as BookingStatus]?.description ?? ''))
+                                  ? generic
+                                  : f.statusDetail,
+                              }));
+                            }}
                             className={SELECT}
                           >
                             <option value="" disabled>Select status…</option>

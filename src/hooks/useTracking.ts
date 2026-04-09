@@ -118,7 +118,12 @@ export default useTracking;
 
 export function deriveCurrentStatus(data: TrackingData | null): BookingStatus {
   if (!data) return 'pending';
-  // Latest event status takes precedence
-  const latest = data.events[0]?.status;
-  return latest ?? data.booking.status;
+  // Skip admin-only audit entries (is_custom_event) — they must never drive
+  // the displayed status since they have today's timestamp and a stale status.
+  // Sort real events by timestamp descending, take the latest one.
+  const realEvents = data.events
+    .filter(e => !e.is_custom_event)
+    .sort((a, b) => new Date(b.event_timestamp).getTime() - new Date(a.event_timestamp).getTime());
+  const latestReal = realEvents[0]?.status;
+  return latestReal ?? data.booking.status;
 }
