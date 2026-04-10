@@ -114,10 +114,10 @@ export function buildLineItems(booking: BookingRow): InvoiceLineItem[] {
 
 async function getNextInvoiceSequence(
   supabase: ReturnType<typeof createAdminClient>,
+  forDate: Date,
 ): Promise<number> {
-  const now  = new Date();
-  const yyyy = now.getFullYear();
-  const mm   = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = forDate.getFullYear();
+  const mm   = String(forDate.getMonth() + 1).padStart(2, '0');
   const prefix = `INV-${yyyy}${mm}-`;
 
   // Count existing invoices this month to derive next sequence
@@ -211,10 +211,12 @@ export async function generateInvoice(
     booking.sender_country,
   ]);
 
-  // ── Invoice number ───────────────────────────────────────────────────────────
-  const seq           = await getNextInvoiceSequence(supabase);
-  const invoiceNumber = generateInvoiceNumber(seq, new Date());
-  const issueDate     = new Date().toISOString().split('T')[0];
+  // ── Invoice number — use booking creation date so backdated bookings get the
+  //    correct month prefix (e.g. INV-202410-XXXX for an Oct 2024 booking).
+  const bookingDate   = new Date(booking.created_at);
+  const seq           = await getNextInvoiceSequence(supabase, bookingDate);
+  const invoiceNumber = generateInvoiceNumber(seq, bookingDate);
+  const issueDate     = bookingDate.toISOString().split('T')[0];
 
   // ── Temporary stub insert (without QR — QR needs invoice.id) ────────────────
   const { data: inserted, error: insertError } = await supabase
@@ -262,7 +264,7 @@ export async function generateInvoice(
 
       payment_method:       booking.payment_method,
       payment_status:       'paid',             // invoices are always paid on generation
-      payment_date:         issueDate,
+      payment_date:         bookingDate.toISOString(),
       // For card/online: encode last-4 into reference as "TXN-…::XXXX"
       // PDF splits on "::" to display both transaction ID and masked card number.
       payment_reference:    (() => {
