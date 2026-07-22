@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
       .insert({
         booking_number:        bookingNumber,
         tracking_id:           trackingId,
-        status:                'booked',
+        status:                'confirmed',
         sender_id:             customerId,
         created_by:            null,
 
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
         total_amount:          pricing.total_amount,
 
         payment_method:        payment.payment_method,
-        payment_status:        'pending',
+        payment_status:        'paid',
       })
       .select('id, booking_number, tracking_id')
       .single();
@@ -231,8 +231,8 @@ export async function POST(request: NextRequest) {
     const { error: eventError } = await supabase.from('tracking_events').insert({
       booking_id:            booking.id,
       tracking_id:           trackingId,
-      status:                'booked',
-      status_detail:         'Shipment booked successfully',
+      status:                'confirmed',
+      status_detail:         'Shipment confirmed successfully',
       location:              `${sender.city}, ${sender.emirate?.replace(/_/g, ' ')}`,
       location_coordinates:  null,
       facility_code:         null,

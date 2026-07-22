@@ -24,27 +24,49 @@ export async function generateTrackingId(supabase: SupabaseClient, forDate?: Dat
 }
 
 /**
- * Generates a booking number in the format SC-YYYYMMDD-XXXX
- * Example: SC-20260329-0001
+ * Generates a booking number in the format SC-MMDD-4RAND
+ * Example: SC-0722-7482 (for July 22)
  * @param supabase Supabase client
  * @param forDate  Optional date to generate number for (defaults to today)
  */
 export async function generateBookingNumber(supabase: SupabaseClient, forDate?: Date): Promise<string> {
   const now  = forDate ?? new Date();
-  const yyyy = now.getFullYear();
   const mm   = String(now.getMonth() + 1).padStart(2, '0');
   const dd   = String(now.getDate()).padStart(2, '0');
-  const dateStr = `${yyyy}${mm}${dd}`;
+  const dateStr = `${mm}${dd}`;
+  const prefix = `SC-${dateStr}`;
 
-  // Re-use the same sequence as tracking (they're both daily)
-  const { data, error } = await supabase.rpc('get_next_tracking_sequence', {
-    date_prefix: `SC-${dateStr}`,
-  });
+  let bookingNumber = '';
+  let exists = true;
+  let attempts = 0;
 
-  if (error) throw new Error(`Failed to generate booking number: ${error.message}`);
+  while (exists && attempts < 10) {
+    attempts++;
+    const rand = Math.floor(1000 + Math.random() * 9000); // 4 random digits
+    bookingNumber = `${prefix}-${rand}`;
 
-  const seq = String(data as number).padStart(4, '0');
-  return `SC-${dateStr}-${seq}`;
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('booking_number', bookingNumber)
+      .maybeSingle();
+
+    if (!error && !data) {
+      exists = false;
+    }
+  }
+
+  // Fallback to sequence if random generation fails multiple times
+  if (exists) {
+    const { data: seqData, error: seqError } = await supabase.rpc('get_next_tracking_sequence', {
+      date_prefix: prefix,
+    });
+    if (seqError) throw new Error(`Failed to generate booking number: ${seqError.message}`);
+    const seq = String(seqData as number).padStart(4, '0');
+    bookingNumber = `${prefix}-${seq}`;
+  }
+
+  return bookingNumber;
 }
 
 /**

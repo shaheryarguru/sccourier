@@ -210,7 +210,11 @@ export function EditPanel({ booking, onClose, onSaved }: EditPanelProps) {
   }
 
   function handleDateChange(val: string) {
-    set('booking_date', val);
+    setForm(prev => ({
+      ...prev,
+      booking_date: val,
+      pickup_date: val
+    }));
     setDateChanged(val !== booking.created_at.split('T')[0]);
   }
 
@@ -451,17 +455,7 @@ export function EditPanel({ booking, onClose, onSaved }: EditPanelProps) {
                 <input type="number" min="0" step="0.01" className={inputCls} value={form.weight_kg} onChange={e => setNum('weight_kg', e.target.value)} />
               </Field>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Length (cm)">
-                <input type="number" min="0" step="0.1" className={inputCls} placeholder="—" value={form.dimensions_length_cm} onChange={e => set('dimensions_length_cm', e.target.value)} />
-              </Field>
-              <Field label="Width (cm)">
-                <input type="number" min="0" step="0.1" className={inputCls} placeholder="—" value={form.dimensions_width_cm} onChange={e => set('dimensions_width_cm', e.target.value)} />
-              </Field>
-              <Field label="Height (cm)">
-                <input type="number" min="0" step="0.1" className={inputCls} placeholder="—" value={form.dimensions_height_cm} onChange={e => set('dimensions_height_cm', e.target.value)} />
-              </Field>
-            </div>
+
             <Field label="Pieces">
               <input type="number" min="1" step="1" className={inputCls} value={form.number_of_pieces} onChange={e => setNum('number_of_pieces', e.target.value)} />
             </Field>
@@ -478,11 +472,20 @@ export function EditPanel({ booking, onClose, onSaved }: EditPanelProps) {
                 {SERVICE_TYPES.map(st => <option key={st.value} value={st.value}>{st.label} — {st.description}</option>)}
               </select>
             </Field>
-            <Toggle checked={form.pickup_requested} onChange={v => set('pickup_requested', v)} label="Pickup Requested" />
+            <Toggle
+              checked={form.pickup_requested}
+              onChange={v => {
+                set('pickup_requested', v);
+                if (v && !form.pickup_date) {
+                  setForm(prev => ({ ...prev, pickup_date: prev.booking_date }));
+                }
+              }}
+              label="Pickup Requested"
+            />
             {form.pickup_requested && (
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Pickup Date">
-                  <input type="date" className={inputCls} value={form.pickup_date} onChange={e => set('pickup_date', e.target.value)} />
+                  <input type="date" className={inputCls} value={form.pickup_date} onChange={e => handleDateChange(e.target.value)} />
                 </Field>
                 <Field label="Time Slot">
                   <select className={selectCls} value={form.pickup_time_slot} onChange={e => set('pickup_time_slot', e.target.value)}>

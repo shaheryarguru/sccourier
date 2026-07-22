@@ -18,6 +18,7 @@ import {
   addCustomEvent,
   addBulkEvents,
   updateEventTimestamp,
+  deleteTrackingEvent,
   type BulkEventItem,
 } from '../actions';
 
@@ -350,6 +351,167 @@ export function StatusUpdatePanel({
     signatureUrl: '',
   });
   const [statusSubmitting, setStatusSubmitting] = useState(false);
+
+  // ── Auto-Generate Events ──────────────────────────────────────────────────
+  const [autoForm, setAutoForm] = useState({
+    startDate: booking.created_at ? booking.created_at.split('T')[0] : todayStr(),
+    endDate: todayStr(),
+    numEvents: 5,
+  });
+  const [autoSubmitting, setAutoSubmitting] = useState(false);
+
+  const handleAutoGenerate = useCallback(async () => {
+    setAutoSubmitting(true);
+    try {
+      const { startDate, endDate, numEvents } = autoForm;
+      if (!startDate || !endDate) {
+        toastError('Generation failed', 'Please select both start and end dates.');
+        setAutoSubmitting(false);
+        return;
+      }
+
+      const parsedStart = new Date(startDate);
+      const parsedEnd = new Date(endDate);
+      if (parsedEnd < parsedStart) {
+        toastError('Generation failed', 'End date cannot be before start date.');
+        setAutoSubmitting(false);
+        return;
+      }
+
+      let tPickUp: Date;
+      let tOut: Date;
+      let tDelivered: Date;
+
+      if (startDate === endDate) {
+        // Safe spacing for same-day delivery
+        tPickUp = new Date(`${startDate}T08:00:00`);
+        tPickUp.setMinutes(Math.floor(Math.random() * 90)); // 08:00 - 09:30
+
+        tOut = new Date(`${endDate}T13:00:00`);
+        tOut.setMinutes(Math.floor(Math.random() * 90)); // 13:00 - 14:30
+
+        tDelivered = new Date(`${endDate}T16:00:00`);
+        tDelivered.setMinutes(Math.floor(Math.random() * 90)); // 16:00 - 17:30
+      } else {
+        // Spacing for multi-day delivery
+        tPickUp = new Date(`${startDate}T09:00:00`);
+        tPickUp.setMinutes(Math.floor(Math.random() * 480)); // 09:00 - 17:00
+
+        tOut = new Date(`${endDate}T08:30:00`);
+        tOut.setMinutes(Math.floor(Math.random() * 180)); // 08:30 - 11:30
+
+        tDelivered = new Date(`${endDate}T13:00:00`);
+        tDelivered.setMinutes(Math.floor(Math.random() * 270)); // 13:00 - 17:30
+      }
+
+      const t1 = tPickUp.getTime();
+      const t2 = tOut.getTime();
+      const duration = t2 - t1;
+
+      const generatedEvents: BulkEventItem[] = [];
+
+      // 1. Pick Up
+      generatedEvents.push({
+        status: 'picked_up',
+        statusDetail: 'Shipment picked up by courier',
+        location: booking.sender_city ? `${booking.sender_city}, ${booking.sender_emirate}` : 'Origin',
+        timestamp: tPickUp.toISOString(),
+      });
+
+      if (numEvents === 5) {
+        // 2 intermediate events: Transit and At Hub
+        const tTransit = t1 + duration * 0.33 + (Math.random() * 0.1 * duration);
+        const tHub = t1 + duration * 0.66 + (Math.random() * 0.1 * duration);
+
+        generatedEvents.push({
+          status: 'in_transit',
+          statusDetail: 'Shipment received at sorting center and in transit',
+          location: booking.sender_city ? `${booking.sender_city} Sorting Facility` : 'Sorting Center',
+          timestamp: new Date(tTransit).toISOString(),
+        });
+
+        generatedEvents.push({
+          status: 'at_hub',
+          statusDetail: 'Arrived at destination delivery facility',
+          location: booking.receiver_city ? `${booking.receiver_city}, ${booking.receiver_emirate || ''}` : 'Destination Hub',
+          timestamp: new Date(tHub).toISOString(),
+        });
+      } else {
+        // 3 intermediate events: Transit, Transit 2, At Hub
+        const tTransit1 = t1 + duration * 0.25 + (Math.random() * 0.08 * duration);
+        const tTransit2 = t1 + duration * 0.50 + (Math.random() * 0.08 * duration);
+        const tHub = t1 + duration * 0.75 + (Math.random() * 0.08 * duration);
+
+        generatedEvents.push({
+          status: 'in_transit',
+          statusDetail: 'Shipment received at sorting center and in transit',
+          location: booking.sender_city ? `${booking.sender_city} Sorting Facility` : 'Sorting Center',
+          timestamp: new Date(tTransit1).toISOString(),
+        });
+
+        generatedEvents.push({
+          status: 'in_transit',
+          statusDetail: 'Shipment departed transit facility and en route',
+          location: 'Main Transit Hub',
+          timestamp: new Date(tTransit2).toISOString(),
+        });
+
+        generatedEvents.push({
+          status: 'at_hub',
+          statusDetail: 'Arrived at destination delivery facility',
+          location: booking.receiver_city ? `${booking.receiver_city}, ${booking.receiver_emirate || ''}` : 'Destination Hub',
+          timestamp: new Date(tHub).toISOString(),
+        });
+      }
+
+      // 4/5. Out for Delivery
+      generatedEvents.push({
+        status: 'out_for_delivery',
+        statusDetail: 'Shipment out with courier for delivery',
+        location: booking.receiver_city ? `${booking.receiver_city}, ${booking.receiver_emirate || ''}` : 'Delivery Area',
+        timestamp: tOut.toISOString(),
+      });
+
+      // 5/6. Delivered
+      generatedEvents.push({
+        status: 'delivered',
+        statusDetail: 'Shipment delivered successfully. Signed by recipient.',
+        location: booking.receiver_city ? `${booking.receiver_city}, ${booking.receiver_emirate || ''}` : 'Delivered',
+        timestamp: tDelivered.toISOString(),
+      });
+
+      const result = await addBulkEvents({
+        bookingId: booking.id,
+        trackingId: booking.tracking_id,
+        events: generatedEvents,
+      });
+
+      if (result.success) {
+        success('Events generated', `Successfully generated ${numEvents} chronological events.`);
+        onUpdated();
+        onRefreshEvents();
+        setOpenSections(s => ({ ...s, autoGenerate: false }));
+      } else {
+        toastError('Generation failed', result.error);
+      }
+    } catch (e: any) {
+      toastError('Generation failed', e.message || 'An unexpected error occurred.');
+    } finally {
+      setAutoSubmitting(false);
+    }
+  }, [booking, autoForm, success, toastError, onUpdated, onRefreshEvents]);
+
+  const handleDeleteEvent = useCallback(async (eventId: string) => {
+    if (!confirm('Are you sure you want to delete this tracking event?')) return;
+    const result = await deleteTrackingEvent(eventId);
+    if (result.success) {
+      success('Event deleted', 'Tracking event removed.');
+      onUpdated();
+      onRefreshEvents();
+    } else {
+      toastError('Delete failed', result.error);
+    }
+  }, [success, toastError, onUpdated, onRefreshEvents]);
 
   async function handleStatusSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -1119,6 +1281,64 @@ export function StatusUpdatePanel({
               </button>
             </Section>
 
+            {/* ── 5b. Auto Generate Events ───────────────────────────────────── */}
+            <Section
+              icon={<CalendarClock className="size-4 text-text-secondary" aria-hidden="true" />}
+              title="Auto Generate Events"
+              open={openSections.autoGenerate ?? false}
+              onToggle={() => toggleSection('autoGenerate')}
+            >
+              <p className="text-xs font-body text-text-secondary leading-normal">
+                Automatically generate a realistic, chronological timeline of 5 or 6 tracking events from a start date to an end date.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel>Start Date</FieldLabel>
+                  <input
+                    type="date"
+                    value={autoForm.startDate}
+                    max={todayStr()}
+                    onChange={e => setAutoForm(f => ({ ...f, startDate: e.target.value }))}
+                    className={INPUT}
+                  />
+                </div>
+                <div>
+                  <FieldLabel>End Date</FieldLabel>
+                  <input
+                    type="date"
+                    value={autoForm.endDate}
+                    max={todayStr()}
+                    onChange={e => setAutoForm(f => ({ ...f, endDate: e.target.value }))}
+                    className={INPUT}
+                  />
+                </div>
+              </div>
+              <div>
+                <FieldLabel>Number of Events</FieldLabel>
+                <div className="relative">
+                  <select
+                    value={autoForm.numEvents}
+                    onChange={e => setAutoForm(f => ({ ...f, numEvents: parseInt(e.target.value, 10) }))}
+                    className={SELECT}
+                  >
+                    <option value={5}>5 Events (Pick Up, Transit, Hub, Out for Delivery, Delivered)</option>
+                    <option value={6}>6 Events (Pick Up, Transit, Transit 2, Hub, Out for Delivery, Delivered)</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-text-disabled pointer-events-none" aria-hidden="true" />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleAutoGenerate}
+                disabled={autoSubmitting}
+                className="w-full h-9 bg-primary text-white font-body font-semibold text-sm rounded-xl hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 transition-all mt-2"
+              >
+                {autoSubmitting ? (
+                  <><span className="size-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" aria-hidden="true" />Generating…</>
+                ) : 'Generate Events'}
+              </button>
+            </Section>
+
             {/* ── 6. Bulk Events button ──────────────────────────────────────── */}
             <button
               type="button"
@@ -1217,6 +1437,14 @@ export function StatusUpdatePanel({
                                 aria-label="Edit timestamp"
                               >
                                 <Edit2 className="size-3" aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteEvent(ev.id)}
+                                className="p-0.5 rounded text-text-disabled hover:text-danger hover:bg-surface transition-colors"
+                                aria-label="Delete event"
+                              >
+                                <Trash2 className="size-3" aria-hidden="true" />
                               </button>
                             </div>
                           )}

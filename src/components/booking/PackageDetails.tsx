@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   FileText, Package, Layers, Dumbbell, Thermometer,
-  Weight, Ruler, Hash, ArrowRight, ArrowLeft, Info,
+  Weight, Hash, ArrowRight, ArrowLeft, Info,
   Camera, X, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { Input, Button, Card, CardHeader, CardTitle, Tooltip, Badge } from '@/components/ui';
@@ -94,19 +94,6 @@ export function PackageDetails({ defaultValues, onNext, onBack }: Props) {
   const packageType  = watch('package_type');
   const isFragile    = watch('is_fragile');
   const reqSig       = watch('requires_signature');
-  const weightKg     = watch('weight_kg');
-  const lengthCm     = watch('length_cm');
-  const widthCm      = watch('width_cm');
-  const heightCm     = watch('height_cm');
-
-  // Volumetric weight calculation (air courier: ÷ 5000)
-  const hasAllDims = lengthCm && widthCm && heightCm;
-  const volumetricWeight = hasAllDims
-    ? +((lengthCm * widthCm * heightCm) / 5000).toFixed(3)
-    : null;
-  const chargeableWeight = (volumetricWeight !== null && weightKg)
-    ? Math.max(weightKg, volumetricWeight)
-    : null;
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -266,59 +253,7 @@ export function PackageDetails({ defaultValues, onNext, onBack }: Props) {
           />
         </div>
 
-        {/* ── Dimensions ─────────────────────────────────────────────── */}
-        <div>
-          <div className="flex items-center gap-1.5 mb-3">
-            <p className="text-xs font-body font-semibold text-text-secondary uppercase tracking-wider">
-              Dimensions (cm) — Optional
-            </p>
-            <Tooltip content="Dimensions are used to calculate volumetric weight. If volumetric weight exceeds actual weight, the higher value is billed.">
-              <Info className="size-3.5 text-text-disabled cursor-help" aria-hidden="true" />
-            </Tooltip>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <Input
-              label="Length"
-              placeholder=" "
-              type="number"
-              icon={<Ruler className="size-4" />}
-              error={errors.length_cm?.message}
-              {...register('length_cm', { valueAsNumber: true })}
-            />
-            <Input
-              label="Width"
-              placeholder=" "
-              type="number"
-              error={errors.width_cm?.message}
-              {...register('width_cm', { valueAsNumber: true })}
-            />
-            <Input
-              label="Height"
-              placeholder=" "
-              type="number"
-              error={errors.height_cm?.message}
-              {...register('height_cm', { valueAsNumber: true })}
-            />
-          </div>
 
-          {/* Volumetric weight result */}
-          {volumetricWeight !== null && chargeableWeight !== null && (
-            <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl animate-fade-in">
-              <Info className="size-4 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
-              <div className="text-xs font-body text-amber-800 space-y-0.5">
-                <p>
-                  <strong>Volumetric weight:</strong> {volumetricWeight} kg
-                  &nbsp;(L × W × H ÷ 5,000)
-                </p>
-                <p>
-                  <strong>Chargeable weight:</strong>{' '}
-                  <span className="font-semibold">{chargeableWeight} kg</span>
-                  {' '}(the higher of actual vs volumetric)
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* ── Number of pieces ───────────────────────────────────────── */}
         <Input

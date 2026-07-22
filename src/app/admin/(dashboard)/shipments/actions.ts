@@ -382,3 +382,46 @@ export async function updateEventTimestamp(params: UpdateEventTimestampParams): 
   revalidateAll();
   return { success: true };
 }
+
+export async function deleteTrackingEvent(eventId: string): Promise<ActionResult> {
+  const supabase = createAdminClient();
+
+  const { data: event, error: fetchErr } = await supabase
+    .from('tracking_events')
+    .select('booking_id, status')
+    .eq('id', eventId)
+    .single();
+
+  if (fetchErr || !event) {
+    return { success: false, error: fetchErr?.message ?? 'Event not found.' };
+  }
+
+  const { booking_id: bookingId } = event;
+
+  const { error: deleteErr } = await supabase
+    .from('tracking_events')
+    .delete()
+    .eq('id', eventId);
+
+  if (deleteErr) {
+    return { success: false, error: deleteErr.message };
+  }
+
+  const { data: latestEvents, error: latestErr } = await supabase
+    .from('tracking_events')
+    .select('status')
+    .eq('booking_id', bookingId)
+    .order('event_timestamp', { ascending: false })
+    .limit(1);
+
+  if (!latestErr) {
+    const newStatus = latestEvents?.[0]?.status ?? 'confirmed';
+    await supabase
+      .from('bookings')
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq('id', bookingId);
+  }
+
+  revalidateAll();
+  return { success: true };
+}
