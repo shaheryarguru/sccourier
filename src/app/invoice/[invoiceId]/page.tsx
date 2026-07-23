@@ -65,8 +65,8 @@ export default async function InvoicePage({ params }: Props) {
           booking={booking}
           actions={
             <InvoiceActions
-              invoiceId={inv.id}
-              invoiceNumber={inv.invoice_number}
+              invoice={inv}
+              booking={booking}
             />
           }
         />

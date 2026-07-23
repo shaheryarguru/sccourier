@@ -1,17 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, Printer, Share2, Check, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui';
+import { Button, Modal } from '@/components/ui';
+import type { InvoiceRow, BookingRow } from '@/lib/types/database';
+import { slugToLabel } from '@/lib/utils/format';
 
 interface Props {
-  invoiceId:     string;
-  invoiceNumber: string;
+  invoice:  InvoiceRow;
+  booking?: BookingRow | null;
 }
 
-export function InvoiceActions({ invoiceId, invoiceNumber }: Props) {
+export function InvoiceActions({ invoice, booking }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [copied,      setCopied]      = useState(false);
+  const [thermalOpen, setThermalOpen] = useState(false);
+  const [currentTimestamp, setCurrentTimestamp] = useState('');
+
+  const invoiceId = invoice.id;
+  const invoiceNumber = invoice.invoice_number;
+
+  useEffect(() => {
+    const now = new Date(invoice.issue_date);
+    const gstOptions: Intl.DateTimeFormatOptions = {
+      timeZone: 'Asia/Dubai',
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    };
+    setCurrentTimestamp(now.toLocaleString('en-AE', gstOptions).replace(',', ''));
+  }, [invoice.issue_date]);
 
   async function handleDownload() {
     setDownloading(true);
@@ -36,6 +53,10 @@ export function InvoiceActions({ invoiceId, invoiceNumber }: Props) {
     window.print();
   }
 
+  function handlePrintThermal() {
+    window.print();
+  }
+
   async function handleShare() {
     const url = `${window.location.origin}/invoice/${invoiceId}`;
     try {
@@ -48,6 +69,15 @@ export function InvoiceActions({ invoiceId, invoiceNumber }: Props) {
       }
     } catch { /* user cancelled */ }
   }
+
+  // Derived calculations
+  const lineItems = (Array.isArray(invoice.line_items) ? invoice.line_items : []) as any[];
+  const vehicleNo = booking ? `VAN-${100 + (parseInt(booking.tracking_id.replace(/\D/g, ''), 10) || 4) % 900}` : 'VAN-101';
+  const pickupTimeLabel = booking?.pickup_requested ? '10:00 AM' : '—';
+  const pickupDateLabel = booking?.pickup_date ? new Date(booking.pickup_date).toLocaleDateString('en-GB') : '—';
+  const routeLabel = booking && booking.sender_city && booking.receiver_city
+    ? `${booking.sender_city.slice(0, 3).toUpperCase()} → ${booking.receiver_city.slice(0, 3).toUpperCase()}`
+    : 'DXB → SHJ';
 
   return (
     <>
@@ -69,6 +99,14 @@ export function InvoiceActions({ invoiceId, invoiceNumber }: Props) {
         Print
       </Button>
       <Button
+        variant="outline"
+        size="md"
+        leftIcon={<Printer className="size-4" />}
+        onClick={() => setThermalOpen(true)}
+      >
+        Thermal Label (80mm)
+      </Button>
+      <Button
         variant="ghost"
         size="md"
         leftIcon={copied ? <Check className="size-4 text-accent" /> : <Share2 className="size-4" />}
@@ -76,6 +114,208 @@ export function InvoiceActions({ invoiceId, invoiceNumber }: Props) {
       >
         {copied ? 'Copied!' : 'Share'}
       </Button>
+
+      {/* Thermal Label 80mm Print Preview Modal */}
+      {thermalOpen && (
+        <Modal
+          isOpen={thermalOpen}
+          onClose={() => setThermalOpen(false)}
+          title="Thermal Label 80mm Print Preview"
+          size="md"
+          footer={
+            <div className="flex gap-2 justify-end w-full">
+              <Button variant="outline" size="sm" onClick={() => setThermalOpen(false)}>
+                Close
+              </Button>
+              <Button variant="primary" size="sm" leftIcon={<Printer className="size-4" />} onClick={handlePrintThermal}>
+                Print Label
+              </Button>
+            </div>
+          }
+        >
+          {/* Print Style Overrides */}
+          <style dangerouslySetInnerHTML={{__html: `
+            @import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap');
+
+            @media print {
+              /* Hide all standard elements in the body */
+              body * {
+                visibility: hidden !important;
+              }
+              /* Show only the target print wrapper and its children */
+              .thermal-receipt-print-wrapper, .thermal-receipt-print-wrapper * {
+                visibility: visible !important;
+              }
+              /* Align and format to standard 80mm roll width at top-left */
+              .thermal-receipt-print-wrapper {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 80mm !important;
+                margin: 0 !important;
+                padding: 10px !important;
+                box-shadow: none !important;
+                border: none !important;
+                background: white !important;
+              }
+            }
+          `}} />
+
+          {/* Label Preview Container */}
+          <div className="flex justify-center bg-gray-100 p-6 rounded-xl border border-border">
+            <div
+              className="thermal-receipt-print-wrapper bg-white shadow-md border border-gray-200 p-5 select-none"
+              style={{
+                width: '80mm',
+                minHeight: '120mm',
+                fontFamily: "'Courier New', Courier, monospace",
+                color: 'black',
+                fontSize: '12px',
+                lineHeight: '1.4',
+              }}
+            >
+              {/* Header */}
+              <div className="text-center" style={{ marginBottom: '10px' }}>
+                <h3 style={{ margin: '0 0 5px 0', fontSize: '15px', fontWeight: 'bold', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                  SC Courier Services
+                </h3>
+                <p style={{ margin: '0', fontSize: '11px' }}>{invoice.company_address}</p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '11px' }}>
+                  Tel: {invoice.company_phone}
+                </p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '11px' }}>
+                  Email: {invoice.company_email}
+                </p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '11px' }}>
+                  VAT Reg No: {invoice.company_trn}
+                </p>
+              </div>
+
+              <div style={{ borderTop: '1px dashed black', margin: '8px 0' }} />
+
+              {/* Tracking Details */}
+              <div className="text-center" style={{ marginBottom: '8px' }}>
+                <p style={{ margin: '0', fontSize: '12px', fontWeight: 'bold' }}>
+                  TRACKING #: {booking?.tracking_id || 'SC-0723-1234'}
+                </p>
+                <p style={{ margin: '3px 0 0 0', fontSize: '11px', letterSpacing: '0.5px', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                  {booking ? `${slugToLabel(booking.service_type)} Dispatch` : 'Standard Dispatch'}
+                </p>
+              </div>
+
+              <div style={{ borderTop: '1px dashed black', margin: '8px 0' }} />
+
+              {/* Service Details info */}
+              <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                <tbody>
+                  <tr>
+                    <td style={{ padding: '2px 0', width: '55%' }}>Pickup: {pickupTimeLabel}</td>
+                    <td style={{ padding: '2px 0', width: '45%', textAlign: 'right' }}>Vehicle: {vehicleNo}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '2px 0' }}>Date: {pickupDateLabel}</td>
+                    <td style={{ padding: '2px 0', textAlign: 'right' }}>Route: {routeLabel}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div style={{ borderTop: '1px dashed black', margin: '8px 0' }} />
+
+              {/* Issue Timestamp */}
+              <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: 'bold' }}>
+                {currentTimestamp}
+              </div>
+
+              <div style={{ borderTop: '1px dashed black', margin: '8px 0' }} />
+
+              {/* Line items pricing */}
+              <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                <tbody>
+                  {lineItems.map((item, i) => (
+                    <tr key={i}>
+                      <td style={{ padding: '2px 0', verticalAlign: 'top' }}>{item.description}</td>
+                      <td style={{ padding: '2px 0', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                        AED {Number(item.total_amount).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+
+                  <tr>
+                    <td style={{ padding: '8px 0 2px 0', fontWeight: 'bold' }}>Subtotal:</td>
+                    <td style={{ padding: '8px 0 2px 0', textAlign: 'right', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                      AED {Number(invoice.subtotal).toFixed(2)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '2px 0' }}>Tax (VAT 5%):</td>
+                    <td style={{ padding: '2px 0', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      AED {Number(invoice.vat_amount).toFixed(2)}
+                    </td>
+                  </tr>
+                  <tr style={{ fontSize: '12px', fontWeight: 'bold' }}>
+                    <td style={{ padding: '6px 0', borderTop: '1px dashed black' }}>Total:</td>
+                    <td style={{ padding: '6px 0', textAlign: 'right', borderTop: '1px dashed black', whiteSpace: 'nowrap' }}>
+                      AED {Number(invoice.total_amount).toFixed(2)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div style={{ borderTop: '1px dashed black', margin: '8px 0' }} />
+
+              {/* Payment Details */}
+              <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                <tbody>
+                  <tr>
+                    <td style={{ padding: '2px 0', width: '55%' }}>Payment Method:</td>
+                    <td style={{ padding: '2px 0', textAlign: 'right' }}>
+                      {slugToLabel(invoice.payment_method)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '2px 0' }}>Amount Paid:</td>
+                    <td style={{ padding: '2px 0', textAlign: 'right' }}>
+                      AED {invoice.payment_status === 'paid' ? Number(invoice.total_amount).toFixed(2) : '0.00'}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '2px 0' }}>Change:</td>
+                    <td style={{ padding: '2px 0', textAlign: 'right' }}>AED 0.00</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div style={{ borderTop: '1px dashed black', margin: '8px 0' }} />
+
+              {/* Signature / Status details */}
+              <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: 'bold', lineHeight: '1.5' }}>
+                {invoice.payment_status === 'paid' ? 'SIGNATURE CONFIRMED' : 'CONFIRMED'}
+                <br />
+                Package Weight: {booking ? `${Number(booking.weight_kg).toFixed(2)} kg` : '0.00 kg'}
+              </div>
+
+              <div style={{ borderTop: '1px dashed black', margin: '8px 0' }} />
+
+              {/* Tracking Link */}
+              <div style={{ textAlign: 'center', fontSize: '11px', marginBottom: '10px' }}>
+                Track online at:
+                <br />
+                www.sccourier.com/tracking
+              </div>
+
+              {/* Barcode representation */}
+              <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                <div style={{ fontFamily: "'Libre Barcode 39', cursive", fontSize: '42px', margin: '2px 0', lineHeight: '1' }}>
+                  *{booking?.tracking_id || 'SC-0723-1234'}*
+                </div>
+                <div style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '1px' }}>
+                  {booking?.tracking_id || 'SC-0723-1234'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }
