@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { generateTrackingId, generateBookingNumber } from '@/lib/tracking/id-generator';
+import { generateInvoice } from '@/lib/invoice/generator';
 import { UAE_VAT_RATE } from '@/lib/utils/constants';
 import { z } from 'zod';
 
@@ -164,6 +165,36 @@ export async function PATCH(
       { error: 'UPDATE_FAILED', message: updateErr?.message ?? 'Could not update booking' },
       { status: 500 },
     );
+  }
+
+  // Handle invoice regeneration on booking backdate
+  if (booking_date) {
+    try {
+      // 1. Fetch any non-cancelled invoice associated with this booking
+      const { data: existingInvoice } = await supabase
+        .from('invoices')
+        .select('id, invoice_number')
+        .eq('booking_id', id)
+        .eq('is_cancelled', false)
+        .maybeSingle();
+
+      if (existingInvoice) {
+        // 2. Cancel the old invoice
+        await supabase
+          .from('invoices')
+          .update({
+            is_cancelled:     true,
+            cancelled_reason: `System regenerated due to booking date change to ${booking_date}`,
+            updated_at:       new Date().toISOString(),
+          })
+          .eq('id', existingInvoice.id);
+
+        // 3. Generate a new invoice (which will use the new backdated created_at date)
+        await generateInvoice(id);
+      }
+    } catch (invErr) {
+      console.error('Failed to auto-regenerate invoice on booking date update:', invErr);
+    }
   }
 
   // Update tracking_events if tracking_id changed
