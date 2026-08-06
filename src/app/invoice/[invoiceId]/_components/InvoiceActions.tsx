@@ -11,8 +11,84 @@ interface Props {
   booking?: BookingRow | null;
 }
 
+// Code39 Barcode Encoding Table for PDF generation
+const Code39Table: Record<string, string> = {
+  '0': 'n n n w w n w n n',
+  '1': 'w n n w n n n n w',
+  '2': 'n n w w n n n n w',
+  '3': 'w n w w n n n n n',
+  '4': 'n n n w w n n n w',
+  '5': 'w n n w w n n n n',
+  '6': 'n n w w w n n n n',
+  '7': 'n n n w n n w n w',
+  '8': 'w n n w n n w n n',
+  '9': 'n n w w n n w n n',
+  'A': 'w n n n n w n n w',
+  'B': 'n n w n n w n n w',
+  'C': 'w n w n n w n n n',
+  'D': 'n n n n w w n n w',
+  'E': 'w n n n w w n n n',
+  'F': 'n n w n w w n n n',
+  'G': 'n n n n n w w n w',
+  'H': 'w n n n n w w n n',
+  'I': 'n n w n n w w n n',
+  'J': 'n n n n w w w n n',
+  'K': 'w n n n n n n w w',
+  'L': 'n n w n n n n w w',
+  'M': 'w n w n n n n w n',
+  'N': 'n n n n w n n w w',
+  'O': 'w n n n w n n w n',
+  'P': 'n n w n w n n w n',
+  'Q': 'n n n n n n w w w',
+  'R': 'w n n n n n w w n',
+  'S': 'n n w n n n w w n',
+  'T': 'n n n n w n w w n',
+  'U': 'w w n n n n n n w',
+  'V': 'n w w n n n n n w',
+  'W': 'w w w n n n n n n',
+  'X': 'n w n n w n n n w',
+  'Y': 'w w n n w n n n n',
+  'Z': 'n w w n n w n n n',
+  '-': 'n w n n n n w n w',
+  '.': 'w w n n n n w n n',
+  ' ': 'n w w n n n w n n',
+  '*': 'n w n n w n w n n',
+  '$': 'n w n w n w n n n',
+  '/': 'n w n w n n n w n',
+  '+': 'n w n n n w n w n',
+  '%': 'n n n w n w n w n'
+};
+
+// Draw Code39 Barcode using native jsPDF rects
+function drawCode39(doc: any, text: string, x: number, y: number, height: number, narrowWidth: number = 0.22, wideFactor: number = 2.5) {
+  const code = `*${text.toUpperCase()}*`;
+  let currentX = x;
+  const wideWidth = narrowWidth * wideFactor;
+  const interCharacterGap = narrowWidth;
+
+  for (let i = 0; i < code.length; i++) {
+    const char = code[i];
+    const pattern = Code39Table[char] || Code39Table[' '];
+    const bars = pattern.split(' ');
+
+    for (let j = 0; j < bars.length; j++) {
+      const isBlack = (j % 2 === 0);
+      const isWide = (bars[j] === 'w');
+      const w = isWide ? wideWidth : narrowWidth;
+
+      if (isBlack) {
+        doc.setFillColor(0, 0, 0);
+        doc.rect(currentX, y, w, height, 'F');
+      }
+      currentX += w;
+    }
+    currentX += interCharacterGap;
+  }
+}
+
 export function InvoiceActions({ invoice, booking }: Props) {
   const [downloading, setDownloading] = useState(false);
+  const [downloadingThermal, setDownloadingThermal] = useState(false);
   const [copied,      setCopied]      = useState(false);
   const [thermalOpen, setThermalOpen] = useState(false);
   const [currentTimestamp, setCurrentTimestamp] = useState('');
@@ -79,6 +155,181 @@ export function InvoiceActions({ invoice, booking }: Props) {
     ? `${booking.sender_city.slice(0, 3).toUpperCase()} → ${booking.receiver_city.slice(0, 3).toUpperCase()}`
     : 'DXB → SHJ';
 
+  async function handleDownloadThermalPDF() {
+    setDownloadingThermal(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      
+      // We will estimate the dynamic height based on the number of line items
+      // Base height is 165mm + 8mm per line item
+      const dynamicHeight = 160 + lineItems.length * 8;
+      
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [80, dynamicHeight]
+      });
+
+      // Set standard monospace font
+      doc.setFont('courier', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(0, 0, 0);
+
+      let y = 10;
+      const xCenter = 40;
+      const xLeft = 6;
+      const xRight = 74;
+
+      const centerText = (txt: string, yPos: number, isBold = false) => {
+        doc.setFont('courier', isBold ? 'bold' : 'normal');
+        doc.text(txt, xCenter, yPos, { align: 'center' });
+      };
+
+      const leftRightText = (leftTxt: string, rightTxt: string, yPos: number, isBold = false) => {
+        doc.setFont('courier', isBold ? 'bold' : 'normal');
+        doc.text(leftTxt, xLeft, yPos, { align: 'left' });
+        doc.text(rightTxt, xRight, yPos, { align: 'right' });
+      };
+
+      const drawDashedLine = (yPos: number) => {
+        doc.setFont('courier', 'normal');
+        doc.text('-'.repeat(44), xCenter, yPos, { align: 'center' });
+      };
+
+      // 1. Company Header
+      centerText('SC COURIER SERVICES', y, true);
+      y += 4;
+      doc.setFontSize(7.5);
+      centerText(invoice.company_address || 'Office 12, Level 34, Business Tower', y);
+      y += 3.5;
+      centerText(`Tel: ${invoice.company_phone || '+971 4 123 4567'}`, y);
+      y += 3.5;
+      centerText(`Email: ${invoice.company_email || 'info@sccourier.com'}`, y);
+      y += 3.5;
+      centerText(`VAT Reg No: ${invoice.company_trn || '100XXXXXXXXX3'}`, y);
+      y += 4;
+
+      // Divider
+      drawDashedLine(y);
+      y += 4;
+
+      // 2. Tracking details
+      doc.setFontSize(8.5);
+      centerText(`TRACKING #: ${booking?.tracking_id || 'SC-0723-1234'}`, y, true);
+      y += 4;
+      centerText(booking ? `${slugToLabel(booking.service_type).toUpperCase()} DISPATCH` : 'STANDARD DISPATCH', y, true);
+      y += 4;
+
+      // Divider
+      drawDashedLine(y);
+      y += 4;
+
+      // 3. Service details info
+      doc.setFontSize(7.5);
+      leftRightText(`Pickup: ${pickupTimeLabel}`, `Vehicle: ${vehicleNo}`, y);
+      y += 4;
+      leftRightText(`Date: ${pickupDateLabel}`, `Route: ${routeLabel}`, y);
+      y += 4;
+
+      // Divider
+      drawDashedLine(y);
+      y += 4;
+
+      // 4. Timestamp
+      centerText(currentTimestamp, y, true);
+      y += 4;
+
+      // Divider
+      drawDashedLine(y);
+      y += 4;
+
+      // 5. Line items table
+      doc.setFontSize(7.5);
+      lineItems.forEach((item) => {
+        const desc = item.description || '';
+        const amt = `AED ${Number(item.total).toFixed(2)}`;
+        
+        // Wrap description text to size
+        const splitDesc = doc.splitTextToSize(desc, 42);
+        
+        splitDesc.forEach((line: string, idx: number) => {
+          if (idx === 0) {
+            leftRightText(line, amt, y);
+          } else {
+            doc.text(line, xLeft, y, { align: 'left' });
+          }
+          y += 3.5;
+        });
+      });
+
+      y += 2;
+      leftRightText('Subtotal:', `AED ${Number(invoice.subtotal).toFixed(2)}`, y, true);
+      y += 4;
+      leftRightText(`Tax (VAT 5%):`, `AED ${Number(invoice.vat_amount).toFixed(2)}`, y);
+      y += 4;
+      
+      // Inner dashed line for total
+      drawDashedLine(y);
+      y += 4;
+      leftRightText('Total:', `AED ${Number(invoice.total_amount).toFixed(2)}`, y, true);
+      y += 4;
+
+      // Divider
+      drawDashedLine(y);
+      y += 4;
+
+      // 6. Payment info
+      leftRightText('Payment Method:', slugToLabel(invoice.payment_method), y);
+      y += 4;
+      leftRightText('Amount Paid:', `AED ${invoice.payment_status === 'paid' ? Number(invoice.total_amount).toFixed(2) : '0.00'}`, y);
+      y += 4;
+      leftRightText('Change:', 'AED 0.00', y);
+      y += 4;
+
+      // Divider
+      drawDashedLine(y);
+      y += 4;
+
+      // 7. Signature confirmation
+      centerText(invoice.payment_status === 'paid' ? 'SIGNATURE CONFIRMED' : 'CONFIRMED', y, true);
+      y += 4.5;
+      centerText(`Package Weight: ${booking ? Number(booking.weight_kg).toFixed(2) : '0.00'} kg`, y, true);
+      y += 4;
+
+      // Divider
+      drawDashedLine(y);
+      y += 4;
+
+      // 8. Track online link
+      centerText('Track online at:', y);
+      y += 4;
+      centerText('www.sccourier.com/tracking', y, true);
+      y += 6;
+
+      // 9. Barcode Code39
+      const trackingId = booking?.tracking_id || 'SC-0723-1234';
+      
+      // Total barcode width calculation
+      const barcodeWidth = (trackingId.length + 2) * 3.19;
+      const barcodeX = Math.max(5, (80 - barcodeWidth) / 2);
+      
+      drawCode39(doc, trackingId, barcodeX, y, 12, 0.22);
+      y += 15;
+
+      // Alphanumeric tracking ID text
+      doc.setFontSize(8.5);
+      centerText(trackingId, y, true);
+
+      // Save PDF
+      doc.save(`Thermal-Label-${booking?.tracking_id || invoice.invoice_number}.pdf`);
+    } catch (err) {
+      console.error('Failed to generate thermal PDF:', err);
+      alert('Could not download thermal label PDF. Please try again.');
+    } finally {
+      setDownloadingThermal(false);
+    }
+  }
+
   return (
     <>
       <Button
@@ -126,6 +377,15 @@ export function InvoiceActions({ invoice, booking }: Props) {
             <div className="flex gap-2 justify-end w-full">
               <Button variant="outline" size="sm" onClick={() => setThermalOpen(false)}>
                 Close
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={downloadingThermal ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                onClick={handleDownloadThermalPDF}
+                disabled={downloadingThermal}
+              >
+                {downloadingThermal ? 'Downloading…' : 'Download Label'}
               </Button>
               <Button variant="primary" size="sm" leftIcon={<Printer className="size-4" />} onClick={handlePrintThermal}>
                 Print Label
@@ -235,7 +495,7 @@ export function InvoiceActions({ invoice, booking }: Props) {
                     <tr key={i}>
                       <td style={{ padding: '2px 0', verticalAlign: 'top' }}>{item.description}</td>
                       <td style={{ padding: '2px 0', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                        AED {Number(item.total_amount).toFixed(2)}
+                        AED {Number(item.total).toFixed(2)}
                       </td>
                     </tr>
                   ))}
